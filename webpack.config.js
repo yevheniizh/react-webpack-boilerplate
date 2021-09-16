@@ -1,21 +1,33 @@
 const webpack = require("webpack");
 const path = require("path");
-const CopyPlugin = require("copy-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const config = {
-  entry: "./src/index.js",
+  mode: isProduction ? "production" : "development",
+  devtool: isProduction ? "source-map" : "eval-cheap-module-source-map",
+
+  entry: path.join(__dirname, "src/index.js"),
   output: {
-    path: path.join(__dirname, "dist"),
-    filename: `[name].js`,
+    path: isProduction
+      ? path.join(__dirname, "build")
+      : path.join(__dirname, "dist"),
+    filename: `[name].bundle.js`,
   },
 
   module: {
     rules: [
       {
-        test: /\.svg$/,
-        use: "file-loader",
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        use: {
+          loader: "file-loader",
+          options: {
+            name: "[path][name].[ext]",
+          },
+        },
       },
       {
         test: /\.(js|ts)x?$/,
@@ -23,18 +35,30 @@ const config = {
         exclude: /node_modules/,
       },
       {
-        test: /\.css$/,
+        test: /\.css$/i,
         use: ["style-loader", "css-loader"],
       },
     ],
   },
 
   plugins: [
-    new CopyPlugin({
-      patterns: [{ from: "./src/assets", to: "./src/assets" }],
+    // SET 'process.env.NODE_ENV' CONSTANT THROUGH ALL APP
+    new webpack.DefinePlugin({
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     }),
-    new HtmlWebpackPlugin({ template: "public/index.html" }),
-    new CleanWebpackPlugin(),
+    new CopyWebpackPlugin({
+      patterns: [{ from: "src/assets", to: "src/assets" }],
+    }),
+    new HtmlWebpackPlugin({
+      template: path.join(__dirname, "public/index.html"),
+    }),
+
+    // CLEAN 'DIST' FOLDER IN DEVELOPMENT MODE
+    isProduction
+      ? new CleanWebpackPlugin()
+      : new CleanWebpackPlugin({
+          cleanOnceBeforeBuildPatterns: [path.join(__dirname, "dist")],
+        }),
   ],
 };
 
